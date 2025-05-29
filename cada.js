@@ -54,10 +54,10 @@ async function parseRescriptFile(filepath) {
     if (!fs.existsSync(filepath)) {
       return null; // File doesn't exist in this commit
     }
-    
+
     const content = fs.readFileSync(filepath, 'utf8');
     const moduleName = extractModuleName(filepath);
-    
+
     if (ResParser) {
       // Use ReScript's native parser
       try {
@@ -73,10 +73,10 @@ async function parseRescriptFile(filepath) {
         console.warn(`Parser failed for ${filepath}, falling back to CLI:`, parseError.message);
       }
     }
-    
+
     // Fallback to CLI parsing
     return await parseViaReScriptCLI(filepath, content, moduleName);
-    
+
   } catch (error) {
     console.error(`Error parsing ${filepath}:`, error.message);
     return null;
@@ -90,7 +90,7 @@ async function parseViaReScriptCLI(filepath, content, moduleName) {
     if (!fs.existsSync(filepath)) {
       return null;
     }
-    
+
     // Try to validate ReScript syntax - suppress errors for missing files
     try {
       execSync(`rescript format ${filepath}`, { stdio: 'pipe' });
@@ -98,30 +98,30 @@ async function parseViaReScriptCLI(filepath, content, moduleName) {
       // If format fails, still try to parse the content we have
       console.warn(`Format failed for ${filepath}, continuing with raw parsing`);
     }
-    
+
     // Extract declarations using AST-like parsing
     const functions = [];
     const types = [];
     const externals = [];
-    
+
     const lines = content.split('\n');
     let currentConstruct = null;
     let braceDepth = 0;
     let parenDepth = 0;
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const trimmed = line.trim();
-      
+
       // Skip empty lines and comments
       if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('/*')) {
         continue;
       }
-      
+
       // Track brace/paren depth
       braceDepth += (line.match(/\{/g) || []).length - (line.match(/\}/g) || []).length;
       parenDepth += (line.match(/\(/g) || []).length - (line.match(/\)/g) || []).length;
-      
+
       // Start of a new construct
       if (!currentConstruct) {
         if (trimmed.startsWith('let ')) {
@@ -159,14 +159,14 @@ async function parseViaReScriptCLI(filepath, content, moduleName) {
         // Continue current construct
         currentConstruct.lines.push(line);
       }
-      
+
       // End of construct (when we're back to depth 0 and line doesn't end with continuation)
-      if (currentConstruct && braceDepth === 0 && parenDepth === 0 && 
-          !trimmed.endsWith(',') && !trimmed.endsWith('|') && 
-          !trimmed.endsWith('->') && !trimmed.endsWith('=>')) {
-        
+      if (currentConstruct && braceDepth === 0 && parenDepth === 0 &&
+        !trimmed.endsWith(',') && !trimmed.endsWith('|') &&
+        !trimmed.endsWith('->') && !trimmed.endsWith('=>')) {
+
         const code = currentConstruct.lines.join('\n');
-        
+
         switch (currentConstruct.type) {
           case 'function':
             functions.push([currentConstruct.name, code]);
@@ -178,18 +178,18 @@ async function parseViaReScriptCLI(filepath, content, moduleName) {
             externals.push([currentConstruct.name, code]);
             break;
         }
-        
+
         currentConstruct = null;
       }
     }
-    
+
     return {
       moduleName,
       functions,
       types,
       externals
     };
-    
+
   } catch (error) {
     console.error(`CLI parsing failed for ${filepath}:`, error.message);
     return null;
@@ -201,11 +201,11 @@ function extractFromAST(ast) {
   const functions = [];
   const types = [];
   const externals = [];
-  
+
   // This would need proper AST traversal based on ReScript's AST structure
   // For now, return empty arrays as placeholder
   // In a full implementation, you'd traverse the AST nodes
-  
+
   return { functions, types, externals };
 }
 
@@ -221,27 +221,27 @@ function compareModules(oldModule, newModule) {
     }
     return new DetailedChanges('Unknown');
   }
-  
+
   const changes = new DetailedChanges(newModule.moduleName);
-  
+
   // Compare functions
   const oldFuncs = new Map(oldModule.functions);
   const newFuncs = new Map(newModule.functions);
-  
+
   // Added functions
   for (const [name, code] of newModule.functions) {
     if (!oldFuncs.has(name)) {
       changes.addedFunctions.push([name, code]);
     }
   }
-  
+
   // Deleted functions
   for (const [name, code] of oldModule.functions) {
     if (!newFuncs.has(name)) {
       changes.deletedFunctions.push([name, code]);
     }
   }
-  
+
   // Modified functions
   for (const [name, newCode] of newModule.functions) {
     const oldCode = oldFuncs.get(name);
@@ -249,60 +249,60 @@ function compareModules(oldModule, newModule) {
       changes.modifiedFunctions.push([name, oldCode, newCode]);
     }
   }
-  
+
   // Compare types (same logic)
   const oldTypes = new Map(oldModule.types);
   const newTypes = new Map(newModule.types);
-  
+
   for (const [name, code] of newModule.types) {
     if (!oldTypes.has(name)) {
       changes.addedTypes.push([name, code]);
     }
   }
-  
+
   for (const [name, code] of oldModule.types) {
     if (!newTypes.has(name)) {
       changes.deletedTypes.push([name, code]);
     }
   }
-  
+
   for (const [name, newCode] of newModule.types) {
     const oldCode = oldTypes.get(name);
     if (oldCode && oldCode !== newCode) {
       changes.modifiedTypes.push([name, oldCode, newCode]);
     }
   }
-  
+
   // Compare externals (same logic)
   const oldExternals = new Map(oldModule.externals);
   const newExternals = new Map(newModule.externals);
-  
+
   for (const [name, code] of newModule.externals) {
     if (!oldExternals.has(name)) {
       changes.addedExternals.push([name, code]);
     }
   }
-  
+
   for (const [name, code] of oldModule.externals) {
     if (!newExternals.has(name)) {
       changes.deletedExternals.push([name, code]);
     }
   }
-  
+
   for (const [name, newCode] of newModule.externals) {
     const oldCode = oldExternals.get(name);
     if (oldCode && oldCode !== newCode) {
       changes.modifiedExternals.push([name, oldCode, newCode]);
     }
   }
-  
+
   return changes;
 }
 
 // Get entire module as changes (for new/deleted modules)
 function getEntireModuleAsChanges(module, isAdded) {
   const changes = new DetailedChanges(module.moduleName);
-  
+
   if (isAdded) {
     changes.addedFunctions = module.functions;
     changes.addedTypes = module.types;
@@ -312,7 +312,7 @@ function getEntireModuleAsChanges(module, isAdded) {
     changes.deletedTypes = module.types;
     changes.deletedExternals = module.externals;
   }
-  
+
   return changes;
 }
 
@@ -329,16 +329,16 @@ function cloneRepo(repoUrl, localPath) {
 function getChangedFiles(branchName, newCommit, localPath) {
   const oldCwd = process.cwd();
   process.chdir(localPath);
-  
+
   try {
     execSync(`git checkout -f ${branchName}`, { stdio: 'pipe' });
     const commit = execSync(`git rev-parse ${branchName}`, { encoding: 'utf8' }).trim();
     const diff = execSync(`git diff --name-only ${commit} ${newCommit}`, { encoding: 'utf8' });
-    
+
     const files = diff.split('\n')
       .filter(file => file.trim().length > 0)
       .filter(file => file.endsWith('.res'));
-    
+
     return files;
   } finally {
     process.chdir(oldCwd);
@@ -348,25 +348,25 @@ function getChangedFiles(branchName, newCommit, localPath) {
 // Main function
 async function main() {
   const args = process.argv.slice(2);
-  
+
   if (args.length !== 5) {
     console.error('Usage: node rescript-differ.js <repo_url> <local_path> <branch_name> <current_commit> <path>');
     process.exit(1);
   }
-  
+
   const [repoUrl, localRepoPath, branchName, currentCommit, _path] = args;
-  
+
   try {
     // Clone repository
     cloneRepo(repoUrl, localRepoPath);
-    
+
     // Get changed files
     console.log('Getting changed files...');
     const changedFiles = getChangedFiles(branchName, currentCommit, localRepoPath);
     console.log(`Found ${changedFiles.length} changed ReScript files`);
-    
+
     const filePaths = changedFiles.map(file => path.join(localRepoPath, file));
-    
+
     // Process modules for previous commit
     console.log('Processing modules for previous commit...');
     const previousModules = new Map();
@@ -380,14 +380,14 @@ async function main() {
         console.log(`File ${filepath} doesn't exist in previous commit (likely newly added)`);
       }
     }
-    
+
     // Switch to current commit
     console.log('Switching to current commit...');
     const oldCwd = process.cwd();
     process.chdir(localRepoPath);
     execSync(`git checkout -f ${currentCommit}`, { stdio: 'pipe' });
     process.chdir(oldCwd);
-    
+
     // Process modules for current commit
     console.log('Processing modules for current commit...');
     const currentModules = new Map();
@@ -401,28 +401,28 @@ async function main() {
         console.log(`File ${filepath} doesn't exist in current commit (likely deleted)`);
       }
     }
-    
+
     // Compare and generate changes
     console.log('Generating changes...');
     const allChanges = [];
-    
+
     // Get all unique module names
     const allModuleNames = new Set([...previousModules.keys(), ...currentModules.keys()]);
-    
+
     for (const moduleName of allModuleNames) {
       const oldModule = previousModules.get(moduleName);
       const newModule = currentModules.get(moduleName);
       const changes = compareModules(oldModule, newModule);
       allChanges.push(changes);
     }
-    
+
     // Write output
     console.log('Writing output files...');
     fs.writeFileSync('detailed_changes.json', JSON.stringify(allChanges, null, 2));
-    
+
     console.log(`Processing complete! Found changes in ${allChanges.length} modules.`);
     console.log('Output written to: detailed_changes.json');
-    
+
   } catch (error) {
     console.error('Error:', error.message);
     process.exit(1);
