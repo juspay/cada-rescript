@@ -2,10 +2,10 @@ import subprocess
 import json
 import re
 from collections import defaultdict
-from tree_sitter import Language, Parser, Node, Query
+from tree_sitter import Language, Parser, Node
 import tree_sitter_rescript
-import networkx as nx
 import hashlib
+import os
 
 
 class DetailedChanges:
@@ -21,6 +21,20 @@ class DetailedChanges:
         self.modifiedExternals = []
         self.deletedExternals = []
 
+    def to_dict(self):
+        return {
+            "moduleName": self.moduleName,
+            "addedFunctions": self.addedFunctions,
+            "modifiedFunctions": self.modifiedFunctions,
+            "deletedFunctions": self.deletedFunctions,
+            "addedTypes": self.addedTypes,
+            "modifiedTypes": self.modifiedTypes,
+            "deletedTypes": self.deletedTypes,
+            "addedExternals": self.addedExternals,
+            "modifiedExternals": self.modifiedExternals,
+            "deletedExternals": self.deletedExternals,
+        }
+
     def __str__(self):
         return (
             f"Module: {self.moduleName}\n"
@@ -35,6 +49,7 @@ class DetailedChanges:
             f"Deleted Externals: {self.deletedExternals}"
         )
 
+
 def format_rescript_file(file_pth):
     try:
         subprocess.run(["npx", "rescript", "format", file_pth], capture_output=True)
@@ -44,8 +59,8 @@ def format_rescript_file(file_pth):
 
 class RescriptFileDiff:
     def __init__(self, file1_path: str, file2_path: str):
-        language = Language(tree_sitter_rescript.language())
-        parser = Parser(language)
+        self.RS_LANGUAGE = Language(tree_sitter_rescript.language())
+        self.parser = Parser(self.RS_LANGUAGE)
 
         try:
             format_rescript_file(file1_path)
@@ -53,103 +68,128 @@ class RescriptFileDiff:
         except:
             pass
 
-        self.old_file_ast = parser.parse(open(file1_path, "rb").read())
+        self.old_file_ast = self.parser.parse(open(file1_path, "rb").read())
         self.old_file_root = self.old_file_ast.root_node
 
-        self.new_file_ast = parser.parse(open(file2_path, "rb").read())
+        self.new_file_ast = self.parser.parse(open(file2_path, "rb").read())
         self.new_file_root = self.new_file_ast.root_node
 
-        self.module_name = file1_path.split("/")[-1]
+        self.module_name = file1_path.split('/')[-1]
     
-
-    def get_decl_name(self, node: Node, node_type, name_type):
+    def get_decl_name(self, node: Node, node_type: str, name_type: str) -> str:
         for child in node.children:
-            if node_type is None and child.type == name_type:
-                return child.text.decode()
-            if child.type == node_type or node_type is None:
-                for binding_child in child.children:
-                    if binding_child.is_named and binding_child.type == name_type:
-                        return binding_child.text.decode()
+            if node_type and child.type == node_type:
+                for grandchild in child.children:
+                    if grandchild.is_named and grandchild.type == name_type:
+                        return grandchild.text.decode(errors="ignore")
+            elif not node_type and child.is_named and child.type == name_type:
+                return child.text.decode(errors="ignore")
         return None
 
-    def extract_components(self, tree):
+    def ast_to_tuple(self, node: Node) -> tuple:
+        named_children = [c for c in node.children if c.is_named]
+        if not named_children:
+            text = node.text.decode(errors="ignore")
+            return (node.type, text)
+        return (
+            node.type,
+            tuple(self.ast_to_tuple(c) for c in named_children)
+        )
 
-        cursor = tree.walk()
-        stack = [cursor.node]
+    def extract_components(self, root: Node) -> tuple:
+        stack = [root]
         functions = {}
         types = {}
         externals = {}
 
         while stack:
             node = stack.pop()
+
             if node.type == "let_declaration":
-                node_name = self.get_decl_name(node, "let_binding", "value_identifier")
-                node_content = node.text.decode()
-                if node_name and node_content:
-                    hash_body = hashlib.md5(node_content.encode()).hexdigest()
-                    functions[node_name] = (hash_body, node_content)
+                name = self.get_decl_name(node, "let_binding", "value_identifier")
+                if name:
+                    ast_repr = self.ast_to_tuple(node)
+                    body_text = node.text.decode(errors="ignore")
+                    functions[name] = (ast_repr, body_text)
+
             elif node.type == "type_declaration":
-                node_name = self.get_decl_name(node, "type_binding", "type_identifier")
-                node_content = node.text.decode()
-                if node_name and node_content:
-                    hash_body = hashlib.md5(node_content.encode()).hexdigest()
-                    types[node_name] = (hash_body, node_content)
+                name = self.get_decl_name(node, "type_binding", "type_identifier")
+                if name:
+                    ast_repr = self.ast_to_tuple(node)
+                    body_text = node.text.decode(errors="ignore")
+                    types[name] = (ast_repr, body_text)
+
             elif node.type == "external_declaration":
-                node_name = self.get_decl_name(node, None, "value_identifier")
-                node_content = node.text.decode()
-                if node_name and node_content:
-                    hash_body = hashlib.md5(node_content.encode()).hexdigest()
-                    externals[node_name] = (hash_body, node_content)
+                name = self.get_decl_name(node, None, "value_identifier")
+                if name:
+                    ast_repr = self.ast_to_tuple(node)
+                    body_text = node.text.decode(errors="ignore")
+                    externals[name] = (ast_repr, body_text)
+
             else:
                 for child in reversed(node.children):
-                    stack.append(child)
+                    if child.is_named:
+                        stack.append(child)
+
         return functions, types, externals
 
-    def diff_components(self, funcs_before, funcs_after):
-        before_names = set(funcs_before)
-        after_names = set(funcs_after)
+    def diff_components(self, before_map: dict, after_map: dict) -> dict:
+        before_names = set(before_map.keys())
+        after_names = set(after_map.keys())
 
         added_names = after_names - before_names
         deleted_names = before_names - after_names
-        possibly_modified_names = before_names & after_names
+        common = before_names & after_names
 
-        modified = set()
-        added = set()
-        deleted = set()
+        added = [(n, after_map[n][1]) for n in sorted(added_names)]
+        deleted = [(n, before_map[n][1]) for n in sorted(deleted_names)]
 
-        for name in possibly_modified_names:
-            if funcs_before[name] != funcs_after[name]:
-                modified.add((name, funcs_before[name][1], funcs_after[name][1]))
-        
-        for name in added_names:
-            added.add((name, funcs_after[name][1]))
-        
-        for name in deleted_names:
-            deleted.add((name, funcs_before[name]))
+        modified = []
+        for name in sorted(common):
+            old_ast, old_body = before_map[name]
+            new_ast, new_body = after_map[name]
+            if old_ast != new_ast:
+                modified.append((name, old_body, new_body))
 
-        return {
-            "added": list(added),
-            "deleted": list(deleted),
-            "modified": list(modified),
-        }
-    
-    def process_files(self):
-        old_funcs, old_types, old_externals = self.extract_components(self.old_file_root)
-        new_funcs, new_types, new_externals = self.extract_components(self.new_file_root)
+        return {"added": added, "deleted": deleted, "modified": modified}
+
+    def process_files(self) -> DetailedChanges:
+        old_funcs, old_types, old_ext = self.extract_components(self.old_file_root)
+        new_funcs, new_types, new_ext = self.extract_components(self.new_file_root)
 
         changes = DetailedChanges(self.module_name)
-        
-        funcs_diff = self.diff_components(old_funcs, new_funcs)
-        types_diff = self.diff_components(old_types, new_types)
-        externals_diff = self.diff_components(old_externals, new_externals)
 
-        changes.addedFunctions, changes.deletedFunctions, changes.modifiedFunctions = funcs_diff.values()
-        changes.addedTypes, changes.deletedTypes, changes.modifiedTypes = types_diff.values()
-        changes.addedExternals, changes.deletedExternals, changes.modifiedExternals = externals_diff.values()
+        funcs_diff = self.diff_components(old_funcs, new_funcs)
+        changes.addedFunctions = funcs_diff["added"]
+        changes.deletedFunctions = funcs_diff["deleted"]
+        changes.modifiedFunctions = funcs_diff["modified"]
+
+        types_diff = self.diff_components(old_types, new_types)
+        changes.addedTypes = types_diff["added"]
+        changes.deletedTypes = types_diff["deleted"]
+        changes.modifiedTypes = types_diff["modified"]
+
+        ext_diff = self.diff_components(old_ext, new_ext)
+        changes.addedExternals = ext_diff["added"]
+        changes.deletedExternals = ext_diff["deleted"]
+        changes.modifiedExternals = ext_diff["modified"]
 
         return changes
 
-    def exp(self):
-        new_funcs, new_types, externals = self.extract_components(self.new_file_root)
-        print(externals)
 
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) != 3:
+        print("Usage: python parser.py <old.res> <new.res>")
+        sys.exit(1)
+
+    file_old, file_new = sys.argv[1], sys.argv[2]
+    diff = RescriptFileDiff(file_old, file_new)
+    changes = diff.process_files()
+
+    # Save output to JSON file instead of printing to stdout
+    out_path = f"{os.path.splitext(os.path.basename(file_old))[0]}_vs_{os.path.splitext(os.path.basename(file_new))[0]}_changes.json"
+    with open(out_path, "w") as f:
+        json.dump(changes.to_dict(), f, indent=2)
+
+    print(f"Detailed changes written to {out_path}")
