@@ -86,15 +86,14 @@ def main():
                 old_node, new_node = asts_list
                 diff = RescriptFileDiff(old_node, new_node, module_name)
                 changes = diff.process_files()
-                out_path = os.path.join(output_dir, f"{module_name}_changes.json")
-                with open(out_path, "w") as f:
-                    json.dump(changes.to_dict(), f, indent=2)
-
                 all_changes.append(changes.to_dict())
 
-                print(f"Detailed changes written to {out_path}")
-        with open(os.path.join(output_dir, "detailed_changes.json"), "w") as f:
-            json.dump(all_changes, f, indent=3)
+        final_output_path = os.path.join(output_dir, "detailed_changes.json")
+        with open(final_output_path, "w") as f:
+            json.dump(all_changes, f, indent = 3)
+        
+        print("Changes written to - ", final_output_path)
+
     except Exception as e:
         print("ERROR - ", e)
         pass
