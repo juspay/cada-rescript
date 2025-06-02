@@ -58,23 +58,11 @@ def format_rescript_file(file_pth):
 
 
 class RescriptFileDiff:
-    def __init__(self, file1_path: str, file2_path: str):
-        self.RS_LANGUAGE = Language(tree_sitter_rescript.language())
-        self.parser = Parser(self.RS_LANGUAGE)
+    def __init__(self, old_file_ast, new_file_ast, module_name=""):
+        self.old_file_root = old_file_ast.root_node
+        self.new_file_root = new_file_ast.root_node
 
-        try:
-            format_rescript_file(file1_path)
-            format_rescript_file(file2_path)
-        except:
-            pass
-
-        self.old_file_ast = self.parser.parse(open(file1_path, "rb").read())
-        self.old_file_root = self.old_file_ast.root_node
-
-        self.new_file_ast = self.parser.parse(open(file2_path, "rb").read())
-        self.new_file_root = self.new_file_ast.root_node
-
-        self.module_name = file1_path.split('/')[-1]
+        self.module_name = module_name
     
     def get_decl_name(self, node: Node, node_type: str, name_type: str) -> str:
         for child in node.children:
