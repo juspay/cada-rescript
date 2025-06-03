@@ -39,7 +39,7 @@ def main():
     args = sys.argv[1:]
 
     if len(args) != 5:
-        print('Usage: python rescript_differ.py <repo_url> <local_path> <branch_or_commit> <current_commit> <output_dir>')
+        print('Usage: python main.py <repo_url> <local_path> <branch_or_commit> <current_commit> <output_dir>')
         sys.exit(1)
 
     repo_url, local_repo_path, branch_or_commit, current_commit, output_dir = args
