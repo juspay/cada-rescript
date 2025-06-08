@@ -1,0 +1,22 @@
+[project]
+name = "rescript-ast-diff"
+version = "0.1.1"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Jignyas Anand Siripurapu", email = "jignyas.s@juspay.in" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.32.3",
+    "tree-sitter",
+    "tree-sitter-rescript",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.sources]
+tree-sitter = { git = "https://github.com/tree-sitter/py-tree-sitter" }
+tree-sitter-rescript = { git = "https://github.com/rescript-lang/tree-sitter-rescript" }
