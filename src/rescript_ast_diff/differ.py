@@ -123,7 +123,7 @@ class RescriptFileDiff:
                 if name:
                     if current_node.parent.type != "source_file":
                         try:
-                            name = f"{current_node.parent.parent.child(0).text.decode()} --> {name}"
+                            name = f"{current_node.parent.parent.child(0).text.decode()}::{name}"
                         except:
                             pass
                     dct[name] = (current_node, current_node.text.decode(errors="ignore"), current_node.start_point, current_node.end_point)
