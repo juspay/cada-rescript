@@ -87,14 +87,14 @@ class RescriptFileDiff:
         if nodeA.type != nodeB.type:
             return False
 
-        childrenA = nodeA.named_children
-        childrenB = nodeB.named_children
+        childrenA = nodeA.children
+        childrenB = nodeB.children
 
         if len(childrenA) != len(childrenB):
             return False
 
         if len(childrenA) == 0:
-            return nodeA.text == nodeB.text
+            return nodeA.text == nodeB.text and nodeA.parent.text == nodeB.parent.text
 
         for childA, childB in zip(childrenA, childrenB):
             if not self.deep_equal(childA, childB):
@@ -190,3 +190,15 @@ class RescriptFileDiff:
             self.changes.addedExternals = [(n, exts[n][1]) for n in sorted(ext_names)]
         
         return self.changes
+
+# if __name__ == "__main__":
+#     RS_LANGUAGE = Language(tree_sitter_rescript.language())
+#     parser = Parser(RS_LANGUAGE)
+#     with open("file1.res", "rb") as f, open("file2.res", "rb") as f2:
+#         content1 = f.read()
+#         content2 = f2.read()
+#     ast = parser.parse(content1)
+#     ast2 = parser.parse(content2)
+#     differ = RescriptFileDiff("fred")
+
+#     print(differ.compare_two_files(ast, ast2))
