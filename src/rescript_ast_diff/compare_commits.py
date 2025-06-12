@@ -152,6 +152,14 @@ def generate_pr_changes_bitbucket(pr_id: str, bitbucket_object: BitBucket, outpu
         print("ERROR - ", e)
         print(traceback.format_exc())
 
-# if __name__ == "__main__":
-#     bitbucket = BitBucket(BASE_URL, PROJECT_KEY, REPO_SLUG, AUTH, HEADERS)
-#     generate_pr_changes_bitbucket("19971", bitbucket, quiet=False)
+BASE_URL = "https://bitbucket.juspay.net/rest"
+PROJECT_KEY = "JBIZ"
+REPO_SLUG = "rescript-euler-dashboard"
+AUTH = ("sakthi.n@juspay.in", "BBDC-NDg5ODgwNDM2MzkyOjgy8c70YxFmjQlfjSGQD4895tx5")
+HEADERS = {"Accept": "application/json"}
+PR_ID = "22113"
+
+
+if __name__ == "__main__":
+    bitbucket = BitBucket(BASE_URL, PROJECT_KEY, REPO_SLUG, AUTH, HEADERS)
+    generate_pr_changes_bitbucket("19971", bitbucket, quiet=False)

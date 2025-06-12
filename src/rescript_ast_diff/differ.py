@@ -141,8 +141,8 @@ class RescriptFileDiff:
         deleted_names = before_names - after_names
         common = before_names & after_names
 
-        added = [(n, after_map[n][1]) for n in sorted(added_names)]
-        deleted = [(n, before_map[n][1]) for n in sorted(deleted_names)]
+        added = [(n, after_map[n][1], {"start": after_map[n][2], "end": after_map[n][3]}) for n in sorted(added_names)]
+        deleted = [(n, before_map[n][1], {"start": before_map[n][2], "end": before_map[n][3]}) for n in sorted(deleted_names)]
 
         modified = []
         for name in sorted(common):
