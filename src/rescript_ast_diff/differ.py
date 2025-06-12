@@ -181,13 +181,13 @@ class RescriptFileDiff:
         ext_names = set(exts.keys())
 
         if mode == "deleted":
-            self.changes.deletedFunctions = [(n, funcs[n][1]) for n in sorted(func_names)]
-            self.changes.deletedTypes = [(n, types[n][1]) for n in sorted(type_names)]
-            self.changes.deletedExternals = [(n, exts[n][1]) for n in sorted(ext_names)]
+            self.changes.deletedFunctions = [(n, funcs[n][1], {"start": funcs[n][2], "end": funcs[n][3]}) for n in sorted(func_names)]
+            self.changes.deletedTypes = [(n, types[n][1], {"start": types[n][2], "end": types[n][3]}) for n in sorted(type_names)]
+            self.changes.deletedExternals = [(n, exts[n][1], {"start": exts[n][2], "end": exts[n][3]}) for n in sorted(ext_names)]
         else:
-            self.changes.addedFunctions = [(n, funcs[n][1]) for n in sorted(func_names)]
-            self.changes.addedTypes = [(n, types[n][1]) for n in sorted(type_names)]
-            self.changes.addedExternals = [(n, exts[n][1]) for n in sorted(ext_names)]
+            self.changes.addedFunctions = [(n, funcs[n][1], {"start": funcs[n][2], "end": funcs[n][3]}) for n in sorted(func_names)]
+            self.changes.addedTypes = [(n, types[n][1], {"start": types[n][2], "end": types[n][3]}) for n in sorted(type_names)]
+            self.changes.addedExternals = [(n, exts[n][1], {"start": exts[n][2], "end": exts[n][3]}) for n in sorted(ext_names)]
         
         return self.changes
 
