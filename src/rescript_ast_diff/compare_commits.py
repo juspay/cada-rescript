@@ -90,7 +90,7 @@ def generate_changes_local(repo_url, local_repo_path, branch_or_commit, current_
         print("ERROR - ", e)
         print(traceback.format_exc())
 
-def generate_pr_changes_bitbucket(pr_id: str, bitbucket_object: BitBucket, output_dir="./", quiet=True):
+def generate_pr_changes_bitbucket(bitbucket_object: BitBucket,pr_id: str = None,fromBranch: str = None, toBranch: str = None, output_dir="./", quiet=True):
 
     try:
         RS_LANGUAGE = Language(tree_sitter_rescript.language())
@@ -98,8 +98,12 @@ def generate_pr_changes_bitbucket(pr_id: str, bitbucket_object: BitBucket, outpu
         if not isinstance(bitbucket_object, BitBucket):
             raise Exception("You should pass an valid bitbucket object")
         
-        pull_request = bitbucket_object.get_pr_bitbucket(pr_id)
-        latest_commit, old_commit = pull_request["fromRef"]["latestCommit"], pull_request["toRef"]["latestCommit"]
+        if pr_id:
+            pull_request = bitbucket_object.get_pr_bitbucket(pr_id)
+            latest_commit, old_commit = pull_request["fromRef"]["latestCommit"], pull_request["toRef"]["latestCommit"]
+        else: 
+            latest_commit = bitbucket_object.get_latest_commit_from_branch(fromBranch)
+            old_commit = bitbucket_object.get_latest_commit_from_branch(toBranch)
 
         print("LATEST COMMIT -", latest_commit)
         print("OLDEST COMMIT -", old_commit)

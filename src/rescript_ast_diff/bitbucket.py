@@ -21,6 +21,7 @@ class BitBucket:
 
         self.FILE_CONTENT_URL  = base_url + "/api/latest/projects/{projectKey}/repos/{repositorySlug}/browse/{path}"
         self.GET_PR_URL = base_url + "/api/latest/projects/{projectKey}/repos/{repositorySlug}/pull-requests/{pullRequestId}"
+        self.GET_LATEST_COMMIT = base_url + "/api/latest/projects/{projectKey}/repos/{repositorySlug}/commits/{branchName}?limit=1"
         self.DIFF_URL  = base_url + "/api/latest/projects/{projectKey}/repos/{repositorySlug}/compare/diff"
         self.DIFF_URL_RAW  = base_url + "/api/latest/projects/{projectKey}/repos/{repositorySlug}/diff"
 
@@ -71,6 +72,15 @@ class BitBucket:
         final_url = self.GET_PR_URL.format(projectKey = self.project_key, repositorySlug = self.repo_slug, pullRequestId = pr_id)
         response = requests.get(final_url, auth = self.auth, headers = self.headers)
         return handle_response(response, lambda response: response.json())
+    
+    def get_latest_commit_from_branch(self, branchName: str):
+        def handle_file_response(response):
+            formatted_response = response.json()
+            return formatted_response['id']
+        
+        final_url = self.GET_LATEST_COMMIT.format(projectKey = self.project_key, repositorySlug = self.repo_slug, branchName = branchName)
+        response = requests.get(final_url, auth = self.auth, headers = self.headers)
+        return handle_response(response, handle_file_response)
 
     def get_file_content_from_bitbucket(self, file_path: str, commit: str = "") -> str:
         
