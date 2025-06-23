@@ -90,7 +90,7 @@ class BitBucket:
                 if (pr['fromRef']['displayId'] == branchName):
                     return pr['toRef']['displayId']
         
-        final_url = self.GET_PRS.format(projectKey = self.project_key, repositorySlug = self.repo_slug, branchName = branchName)
+        final_url = self.GET_PRS.format(projectKey = self.project_key, repositorySlug = self.repo_slug, sourceBranch = branchName)
         response = requests.get(final_url, auth = self.auth, headers = self.headers)
         return handle_response(response, handle_file_response)
 
