@@ -88,7 +88,7 @@ class BitBucket:
             formatted_response = response.json()
             for pr in formatted_response.get('values',[]):
                 if (pr['fromRef']['displayId'] == branchName):
-                    return pr['id']
+                    return (pr['id'], pr['fromRef']['latestCommit'], pr['toRef']['latestCommit'])
         
         final_url = self.GET_PRS.format(projectKey = self.project_key, repositorySlug = self.repo_slug, sourceBranch = branchName)
         response = requests.get(final_url, auth = self.auth, headers = self.headers)
