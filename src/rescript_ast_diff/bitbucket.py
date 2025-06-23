@@ -24,6 +24,7 @@ class BitBucket:
         self.GET_LATEST_COMMIT = base_url + "/api/latest/projects/{projectKey}/repos/{repositorySlug}/commits/{branchName}?limit=1"
         self.DIFF_URL  = base_url + "/api/latest/projects/{projectKey}/repos/{repositorySlug}/compare/diff"
         self.DIFF_URL_RAW  = base_url + "/api/latest/projects/{projectKey}/repos/{repositorySlug}/diff"
+        self.GET_PRS = base_url + "/api/latest/projects/{projectKey}/repos/{repositorySlug}/pull-requests?state=OPEN&at=refs/heads{sourceBranch}&direction=OUTGOING"
 
     def get_file_path_from_object(self, json_object):
         if json_object["parent"] == "":
@@ -79,6 +80,17 @@ class BitBucket:
             return formatted_response['id']
         
         final_url = self.GET_LATEST_COMMIT.format(projectKey = self.project_key, repositorySlug = self.repo_slug, branchName = branchName)
+        response = requests.get(final_url, auth = self.auth, headers = self.headers)
+        return handle_response(response, handle_file_response)
+
+    def find_target_branch(self, branchName: str): 
+        def handle_file_response(response): 
+            formatted_response = response.json()
+            for pr in formatted_response.get('values',[]):
+                if (pr['fromRef']['displayId'] == branchName):
+                    return pr['toRef']['displayId']
+        
+        final_url = self.GET_PRS.format(projectKey = self.project_key, repositorySlug = self.repo_slug, branchName = branchName)
         response = requests.get(final_url, auth = self.auth, headers = self.headers)
         return handle_response(response, handle_file_response)
 
