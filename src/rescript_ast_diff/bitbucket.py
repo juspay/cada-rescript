@@ -24,7 +24,7 @@ class BitBucket:
         self.GET_LATEST_COMMIT = base_url + "/api/latest/projects/{projectKey}/repos/{repositorySlug}/commits/{branchName}?limit=1"
         self.DIFF_URL  = base_url + "/api/latest/projects/{projectKey}/repos/{repositorySlug}/compare/diff"
         self.DIFF_URL_RAW  = base_url + "/api/latest/projects/{projectKey}/repos/{repositorySlug}/diff"
-        self.GET_PRS = base_url + "/api/latest/projects/{projectKey}/repos/{repositorySlug}/pull-requests?state=OPEN&at=refs/heads{sourceBranch}&direction=OUTGOING"
+        self.GET_PRS = base_url + "/api/latest/projects/{projectKey}/repos/{repositorySlug}/pull-requests?state=OPEN&at=refs/heads/{sourceBranch}&direction=OUTGOING"
 
     def get_file_path_from_object(self, json_object):
         if json_object["parent"] == "":
