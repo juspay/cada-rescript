@@ -96,8 +96,8 @@ def generate_pr_changes_bitbucket(bitbucket_object: BitBucket = None, gitclient_
     try:
         RS_LANGUAGE = Language(tree_sitter_rescript.language())
         parser = Parser(RS_LANGUAGE)
-        if not isinstance(bitbucket_object, BitBucket):
-            raise Exception("You should pass an valid bitbucket object")
+        # if not isinstance(bitbucket_object, BitBucket):
+            # raise Exception("You should pass an valid bitbucket object")
         
 
         if bitbucket_object:
