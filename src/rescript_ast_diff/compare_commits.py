@@ -7,6 +7,7 @@ import json
 from collections import defaultdict
 from rescript_ast_diff.differ import RescriptFileDiff
 from rescript_ast_diff.bitbucket import BitBucket
+from rescript_ast_diff.gitwrapper import GitWrapper
 import traceback
 
 
@@ -90,7 +91,7 @@ def generate_changes_local(repo_url, local_repo_path, branch_or_commit, current_
         print("ERROR - ", e)
         print(traceback.format_exc())
 
-def generate_pr_changes_bitbucket(bitbucket_object: BitBucket,pr_id: str = None,fromBranch: str = None, toBranch: str = None, output_dir="./", quiet=True):
+def generate_pr_changes_bitbucket(bitbucket_object: BitBucket = None, gitclient_object: GitWrapper = None, pr_id: str = None, fromBranch: str = None, toBranch: str = None, output_dir="./", quiet=True):
 
     try:
         RS_LANGUAGE = Language(tree_sitter_rescript.language())
@@ -98,24 +99,34 @@ def generate_pr_changes_bitbucket(bitbucket_object: BitBucket,pr_id: str = None,
         if not isinstance(bitbucket_object, BitBucket):
             raise Exception("You should pass an valid bitbucket object")
         
-        if pr_id:
-            pull_request = bitbucket_object.get_pr_bitbucket(pr_id)
-            latest_commit, old_commit = pull_request["fromRef"]["latestCommit"], pull_request["toRef"]["latestCommit"]
+
+        if bitbucket_object:
+            if pr_id:
+                pull_request = bitbucket_object.get_pr_bitbucket(pr_id)
+                latest_commit, old_commit = pull_request["fromRef"]["latestCommit"], pull_request["toRef"]["latestCommit"]
+            else: 
+                latest_commit = bitbucket_object.get_latest_commit_from_branch(fromBranch)
+                old_commit = bitbucket_object.get_latest_commit_from_branch(toBranch)
         else: 
-            latest_commit = bitbucket_object.get_latest_commit_from_branch(fromBranch)
-            old_commit = bitbucket_object.get_latest_commit_from_branch(toBranch)
+            latest_commit = gitclient_object.get_latest_commit_from_branch(fromBranch)
+            old_commit = gitclient_object.get_common_ancestor(fromBranch,toBranch)
 
         print("LATEST COMMIT -", latest_commit)
         print("OLDEST COMMIT -", old_commit)
 
-        changed_files = bitbucket_object.get_changed_files_from_commits(latest_commit, old_commit)
+        changed_files = bitbucket_object.get_changed_files_from_commits(latest_commit, old_commit) if bitbucket_object else gitclient_object.get_changed_files_from_commits(latest_commit, old_commit)
 
         all_changes = []
         for changed_file in changed_files["modified"]:
             if changed_file[-4:] != ".res":
                 continue
-            old_file = bitbucket_object.get_file_content_from_bitbucket(changed_file, old_commit)
-            new_file = bitbucket_object.get_file_content_from_bitbucket(changed_file, latest_commit)
+            if bitbucket_object:
+                old_file = bitbucket_object.get_file_content_from_bitbucket(changed_file, old_commit)
+                new_file = bitbucket_object.get_file_content_from_bitbucket(changed_file, latest_commit)
+            else: 
+                old_file = gitclient_object.get_file_content(changed_file, old_commit)
+                new_file = gitclient_object.get_file_content(changed_file, latest_commit)
+
             old_ast = parser.parse(old_file.encode())
             new_ast = parser.parse(new_file.encode())
             diff = RescriptFileDiff(changed_file)
@@ -127,7 +138,12 @@ def generate_pr_changes_bitbucket(bitbucket_object: BitBucket,pr_id: str = None,
         for added_file in changed_files["added"]:
             if added_file[-4:] != ".res":
                 continue
-            file_content = bitbucket_object.get_file_content_from_bitbucket(added_file, latest_commit)
+
+            if bitbucket_object:
+                file_content = bitbucket_object.get_file_content_from_bitbucket(added_file, latest_commit)
+            else:
+                file_content = gitclient_object.get_file_content(added_file, latest_commit)
+
             file_ast = parser.parse(file_content.encode())
             diff = RescriptFileDiff(added_file)
             changes = diff.process_single_file(file_ast, mode="added")
@@ -138,7 +154,10 @@ def generate_pr_changes_bitbucket(bitbucket_object: BitBucket,pr_id: str = None,
         for deleted_file in changed_files["deleted"]:
             if deleted_file[-4:] != ".res":
                 continue
-            file_content = bitbucket_object.get_file_content_from_bitbucket(deleted_file, old_commit)
+            if bitbucket_object:
+                file_content = bitbucket_object.get_file_content_from_bitbucket(deleted_file, old_commit)
+            else:
+                file_content = gitclient_object.get_file_content(added_file, latest_commit)
             file_ast = parser.parse(file_content.encode())
             diff = RescriptFileDiff(deleted_file)
             changes = diff.process_single_file(file_ast, mode="deleted")
