@@ -1,2 +1,9 @@
 _build
 node_modules
+
+**/fdep
+**/graph
+**/__pycache__
+/.DS_Store
+**/.DS_Store
+**.json

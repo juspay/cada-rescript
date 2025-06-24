@@ -8,9 +8,11 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
+    "gitpython>=3.1.44",
     "requests>=2.32.3",
     "tree-sitter",
     "tree-sitter-rescript",
+    "unidiff>=0.7.5",
 ]
 
 [build-system]
