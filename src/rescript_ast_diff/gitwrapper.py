@@ -39,7 +39,7 @@ class GitWrapper:
         ref2 = f"origin/{branch2}"
         return self.repo.git.merge_base(ref1, ref2).strip()
 
-    def get_changed_files_from_commits(self, from_commit: str, to_commit: str) -> Dict[str, List[str]]:
+    def get_changed_files_from_commits(self, to_commit: str, from_commit: str) -> Dict[str, List[str]]:
         """Get categorized list of changed files between two commits"""
         diff_index = self.repo.commit(from_commit).diff(to_commit, create_patch=False)
         changes = {
