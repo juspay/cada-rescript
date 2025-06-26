@@ -157,7 +157,7 @@ def generate_pr_changes_bitbucket(bitbucket_object: BitBucket = None, gitclient_
             if bitbucket_object:
                 file_content = bitbucket_object.get_file_content_from_bitbucket(deleted_file, old_commit)
             else:
-                file_content = gitclient_object.get_file_content(added_file, latest_commit)
+                file_content = gitclient_object.get_file_content(deleted_file, latest_commit)
             file_ast = parser.parse(file_content.encode())
             diff = RescriptFileDiff(deleted_file)
             changes = diff.process_single_file(file_ast, mode="deleted")
